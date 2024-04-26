@@ -6,7 +6,8 @@ const app = express();
 require('dotenv').config();
 
 // Import the models used in these routes - DO NOT MODIFY
-const { Band, Musician } = require('./db/models');
+const { Band, Musician, Instrument } = require('./db/models');
+const { all } = require('sequelize/lib/operators');
 
 // Express using json - DO NOT MODIFY
 app.use(express.json());
@@ -41,12 +42,14 @@ app.get('/bands-lazy', async (req, res, next) => {
     for(let i = 0; i < allBands.length; i++){
         const band = allBands[i];
         // Your code here
+        const bandMembers = await band.getMusicians({ order: [['firstName']] });
         const bandData = {
             id: band.id,
             name: band.name,
             createdAt: band.createdAt,
             updatedAt: band.updatedAt,
             // Your code here
+            Musicians: bandMembers
         };
         payload.push(bandData);
     }
@@ -57,9 +60,76 @@ app.get('/bands-lazy', async (req, res, next) => {
 app.get('/bands-eager', async (req, res, next) => {
     const payload = await Band.findAll({
         // Your code here
+        include: { model: Musician },
+        order: [['name'],[Musician, 'firstName']]
+
     });
     res.json(payload);
 });
+app.get('/musicians-instruments/:id',async (req,res,next)=> {
+    const payload = await Musician.findByPk(req.params.id,{
+        attributes: ['firstName', 'lastName'],
+        include: {
+            model: Instrument,
+            attributes: ["type"],
+            required: true,
+            through: {
+                attributes: []
+            }
+        }
+    })
+    res.json(payload);
+})
+app.get('/instruments-musicians/:id', async (req,res,next)=> {
+    const instrument = await Instrument.findByPk(req.params.id)
+    const instrumentMusicians = await instrument.getMusicians({
+        attributes: ["firstName","lastName"],
+        joinTableAttributes: [],
+        order: [["firstName"]],
+    })
+    const payload = {
+        Instrument: instrument.type, // Extract the instrument type
+        Musicians: instrumentMusicians // Corrected 'Musicans' to 'Musicians'
+    };
+    res.json(payload);
+})
+app.get('/instruments-musicians', async (req, res, next) => {
+    const allInstruments = await Instrument.findAll()
+    const payload = [];
+    for(let i = 0; i < allInstruments.length;i++){
+        const instrument = allInstruments[i];
+        const instrumentMusicians = await instrument.getMusicians({
+            attributes: ["firstName", "lastName"],
+            joinTableAttributes: [],
+            order: [["firstName"]],
+        })
+        payload.push({
+            Instrument: instrument.type, // Extract the instrument type
+            Musicians: instrumentMusicians 
+        });
+    }
+    
+  
+    res.json(payload);
+})
+
+app.get('/musicians-instruments', async (req, res, next) => {
+    const payload = await Musician.findAll({
+        attributes: ['firstName', 'lastName'],
+        include: {
+            model: Instrument,
+            attributes: ["type"],
+            required: true,
+            through: {
+                attributes: []
+            }
+        }
+    })
+    res.json(payload);
+})
+
+
+
 
 // Root route - DO NOT MODIFY
 app.get('/', (req, res) => {

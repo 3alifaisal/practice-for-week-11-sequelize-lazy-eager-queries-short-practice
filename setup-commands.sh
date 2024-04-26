@@ -5,7 +5,7 @@ cd server
 rm db/dev.db 2> /dev/null || true
 
 # Getting started
-
+ncu -u
 npm install
 
 cp .env.example .env
